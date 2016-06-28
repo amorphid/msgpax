@@ -34,6 +34,35 @@ defmodule Msgpax.Ext do
       iex> Msgpax.unpack!(packed)
       #Msgpax.Ext<10, "aaa">
 
+  ### Unpacking
+
+  As seen in the example above, since the `RepByte` struct is *packed* as a
+  MessagePack extension, it will be unpacked as that extension later on; what we
+  may want, however, is to unpack that extension back to a `RepByte` struct. We
+  can do this by passing an "extensions" module to unpacking functions such as
+  `Msgpax.unpack/2` through the `:ext` option. This extensions module has to
+  implement the `Msgpax.Ext.Unpacker` behaviour and will be used by Msgpax to
+  unpack extensions to arbitrary terms.
+
+  For our `RepByte` example, we could create an unpacker module:
+
+      defmodule MyExtUnpacker do
+        @behaviour Msgpax.Ext.Unpacker
+        @rep_byte_ext_type 10
+
+        def unpack(%Msgpax.Ext{type: @rep_byte_ext_type, data: data}) do
+          <<byte, _rest::binary>> = data
+          {:ok, %RepByte{data: byte, reps: byte_size(data)}}
+        end
+      end
+
+  With this in place, we can now unpack a packed `RepByte` back to a `RepByte`
+  struct:
+
+      iex> packed = Msgpax.pack!(%RepByte{data: ?a, reps: 3})
+      iex> Msgpax.unpack!(packed, ext: MyExtUnpacker)
+      %RepByte{data: ?a, reps: 3}
+
   """
 
   @type type :: 0..127
